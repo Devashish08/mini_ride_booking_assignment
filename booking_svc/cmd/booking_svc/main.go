@@ -10,8 +10,12 @@ import (
 
 	"booking_svc/internal/config"
 	"booking_svc/internal/db"
+	handlerhttp "booking_svc/internal/handler/http"
 	"booking_svc/internal/httpserver"
 	"booking_svc/internal/logging"
+	"booking_svc/internal/mq"
+	"booking_svc/internal/repository/postgres"
+	"booking_svc/internal/service"
 )
 
 var version = "0.1.0"
@@ -42,9 +46,21 @@ func main() {
 		return
 	}
 
-	srv := httpserver.New(cfg, logger)
-	errCh := srv.Start()
+	// Repo + MQ producer + service
+	repo := postgres.NewBookingRepo(pool)
+	producer := mq.NewProducer(cfg, logger)
+	defer func() {
+		_ = producer.Close()
+	}()
+	svc := service.NewBookingService(repo, producer, logger)
 
+	// HTTP server + routes
+	srv := httpserver.New(cfg, logger)
+	handler := handlerhttp.NewBookingHandler(svc)
+	handler.RegisterRoutes(srv.Router())
+
+	// Start and graceful shutdown
+	errCh := srv.Start()
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 

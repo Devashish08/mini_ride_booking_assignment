@@ -1,0 +1,138 @@
+services:
+  redpanda:
+    image: docker.redpanda.com/redpandadata/redpanda:latest
+    command:
+      - redpanda
+      - start
+      - --overprovisioned
+      - --smp
+      - "1"
+      - --memory
+      - "512M"
+      - --reserve-memory
+      - "0M"
+      - --check=false
+      - --node-id
+      - "0"
+      - --kafka-addr
+      - "PLAINTEXT://0.0.0.0:9092"
+      - --advertise-kafka-addr
+      - "PLAINTEXT://redpanda:9092"
+    ports:
+      - "9092:9092"
+      - "9644:9644"
+    networks:
+      - appnet
+
+  booking_db:
+      image: postgres:16-alpine
+      environment:
+        POSTGRES_DB: booking
+        POSTGRES_USER: booking
+        POSTGRES_PASSWORD: booking
+      healthcheck:
+        test: ["CMD-SHELL", "pg_isready -U booking -d booking -h localhost"]
+        interval: 5s
+        timeout: 3s
+        retries: 10
+      volumes:
+        - booking_pgdata:/var/lib/postgresql/data
+      networks:
+        - appnet
+      # Optional: expose to host if you want local psql access
+      # ports:
+      #   - "5433:5432"
+      
+  driver_db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: driver
+      POSTGRES_USER: driver
+      POSTGRES_PASSWORD: driver
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U driver -d driver -h localhost"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    volumes:
+      - driver_pgdata:/var/lib/postgresql/data
+    networks:
+      - appnet
+    # Optional: expose to host if you want local psql access
+    # ports:
+    #   - "5434:5432"
+
+  booking_svc:
+    build:
+      context: ../booking_svc
+      dockerfile: Dockerfile
+    environment:
+      HTTP_PORT: "8080"
+      LOG_LEVEL: "info"
+      DB_HOST: booking_db
+      DB_PORT: "5432"
+      DB_USER: booking
+      DB_PASSWORD: booking
+      DB_NAME: booking
+      KAFKA_BROKERS: redpanda:9092
+      TOPIC_BOOKING_CREATED: booking.created
+      TOPIC_BOOKING_ACCEPTED: booking.accepted
+      CONSUMER_GROUP_ACCEPTS: booking_svc.accepts
+    ports:
+      - "8080:8080"
+    depends_on:
+        redpanda:
+          condition: service_started
+        booking_db:
+          condition: service_healthy
+    restart: on-failure
+
+    networks:
+      - appnet
+
+  driver_svc:
+    build:
+      context: ../driver_svc
+      dockerfile: Dockerfile
+    environment:
+      HTTP_PORT: "8081"
+      LOG_LEVEL: "info"
+      DB_HOST: driver_db
+      DB_PORT: "5432"
+      DB_USER: driver
+      DB_PASSWORD: driver
+      DB_NAME: driver
+      KAFKA_BROKERS: redpanda:9092
+      TOPIC_BOOKING_CREATED: booking.created
+      TOPIC_BOOKING_ACCEPTED: booking.accepted
+      CONSUMER_GROUP_JOBS: driver_svc.jobs
+    ports:
+      - "8081:8081"
+    depends_on:
+      redpanda:
+        condition: service_started
+      driver_db:
+        condition: service_healthy
+    restart: on-failure
+    networks:
+      - appnet
+
+  redpanda-console:
+    image: docker.redpanda.com/redpandadata/console:latest
+    environment:
+      # Console connects to the broker inside the Docker network
+      - KAFKA_BROKERS=redpanda:9092
+    ports:
+      - "8082:8080"   # Console UI on localhost:8082
+    depends_on:
+      - redpanda
+    networks:
+      - appnet
+
+networks:
+  appnet:
+    driver: bridge
+
+volumes:
+  booking_pgdata:
+  driver_pgdata:

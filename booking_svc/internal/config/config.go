@@ -17,6 +17,11 @@ type Config struct {
 	DBUser     string
 	DBPassword string
 	DBName     string
+
+	KafkaBrokers         string
+	TopicBookingCreated  string
+	TopicBookingAccepted string
+	ConsumerGroupAccepts string
 }
 
 func LoadFromEnv(serviceName, defaultPort string) Config {
@@ -30,17 +35,25 @@ func LoadFromEnv(serviceName, defaultPort string) Config {
 	dbPass := getEnv("DB_PASSWORD", dbUser)
 	dbName := getEnv("DB_NAME", dbUser)
 
-	return Config{
-		ServiceName:     serviceName,
-		HTTPPort:        port,
-		GracefulTimeout: time.Duration(gt) * time.Second,
-		LogLevel:        logLevel,
+	kBrokers := getEnv("KAFKA_BROKERS", "redpanda:9092")
+	tCreated := getEnv("TOPIC_BOOKING_CREATED", "booking.created")
+	tAccepted := getEnv("TOPIC_BOOKING_ACCEPTED", "booking.accepted")
+	cgAccepts := getEnv("CONSUMER_GROUP_ACCEPTS", "booking_svc.accepts")
 
-		DBHost:     dbHost,
-		DBPort:     dbPort,
-		DBUser:     dbUser,
-		DBPassword: dbPass,
-		DBName:     dbName,
+	return Config{
+		ServiceName:          serviceName,
+		HTTPPort:             port,
+		GracefulTimeout:      time.Duration(gt) * time.Second,
+		LogLevel:             logLevel,
+		DBHost:               dbHost,
+		DBPort:               dbPort,
+		DBUser:               dbUser,
+		DBPassword:           dbPass,
+		DBName:               dbName,
+		KafkaBrokers:         kBrokers,
+		TopicBookingCreated:  tCreated,
+		TopicBookingAccepted: tAccepted,
+		ConsumerGroupAccepts: cgAccepts,
 	}
 }
 

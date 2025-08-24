@@ -14,6 +14,7 @@ import (
 
 type Server struct {
 	httpServer *http.Server
+	router     *chi.Mux
 	logger     *slog.Logger
 }
 
@@ -34,8 +35,14 @@ func New(cfg config.Config, logger *slog.Logger) *Server {
 
 	return &Server{
 		httpServer: srv,
+		router:     r,
 		logger:     logger,
 	}
+}
+
+// Router exposes the underlying chi router so callers can register routes.
+func (s *Server) Router() chi.Router {
+	return s.router
 }
 
 func (s *Server) Start() <-chan error {
