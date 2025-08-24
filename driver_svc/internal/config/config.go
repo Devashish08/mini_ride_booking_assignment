@@ -11,6 +11,12 @@ type Config struct {
 	HTTPPort        string
 	GracefulTimeout time.Duration
 	LogLevel        string
+
+	DBHost     string
+	DBPort     string
+	DBUser     string
+	DBPassword string
+	DBName     string
 }
 
 func LoadFromEnv(serviceName, defaultPort string) Config {
@@ -18,16 +24,39 @@ func LoadFromEnv(serviceName, defaultPort string) Config {
 	port := getEnv("HTTP_PORT", defaultPort)
 	gt := getEnvInt("GRACEFUL_TIMEOUT_SECONDS", 10)
 
+	dbHost := getEnv("DB_HOST", defByService(serviceName, "booking_db", "driver_db"))
+	dbPort := getEnv("DB_PORT", "5432")
+	dbUser := getEnv("DB_USER", defByService(serviceName, "booking", "driver"))
+	dbPass := getEnv("DB_PASSWORD", dbUser)
+	dbName := getEnv("DB_NAME", dbUser)
+
 	return Config{
 		ServiceName:     serviceName,
 		HTTPPort:        port,
 		GracefulTimeout: time.Duration(gt) * time.Second,
 		LogLevel:        logLevel,
+
+		DBHost:     dbHost,
+		DBPort:     dbPort,
+		DBUser:     dbUser,
+		DBPassword: dbPass,
+		DBName:     dbName,
 	}
 }
 
 func (c Config) Addr() string {
 	return ":" + c.HTTPPort
+}
+
+func defByService(name, bookingDefault, driverDefault string) string {
+	switch name {
+	case "booking_svc":
+		return bookingDefault
+	case "driver_svc":
+		return driverDefault
+	default:
+		return bookingDefault
+	}
 }
 
 func getEnv(key, def string) string {
