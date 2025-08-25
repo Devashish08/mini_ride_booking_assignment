@@ -1,0 +1,42 @@
+{
+    "info": {
+      "name": "Mini Ride Booking",
+      "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "item": [
+      {
+        "name": "Create booking",
+        "request": {
+          "method": "POST",
+          "header": [{ "key": "Content-Type", "value": "application/json" }],
+          "url": { "raw": "http://localhost:8080/bookings", "protocol": "http", "host": ["localhost"], "port": "8080", "path": ["bookings"] },
+          "body": {
+            "mode": "raw",
+            "raw": "{\"pickuploc\":{\"lat\":12.9,\"lng\":77.6},\"dropoff\":{\"lat\":12.95,\"lng\":77.64},\"price\":220}"
+          }
+        }
+      },
+      {
+        "name": "List bookings",
+        "request": { "method": "GET", "url": { "raw": "http://localhost:8080/bookings", "protocol": "http", "host": ["localhost"], "port": "8080", "path": ["bookings"] } }
+      },
+      {
+        "name": "List drivers",
+        "request": { "method": "GET", "url": { "raw": "http://localhost:8081/drivers", "protocol": "http", "host": ["localhost"], "port": "8081", "path": ["drivers"] } }
+      },
+      {
+        "name": "List jobs",
+        "request": { "method": "GET", "url": { "raw": "http://localhost:8081/jobs", "protocol": "http", "host": ["localhost"], "port": "8081", "path": ["jobs"] } }
+      },
+      {
+        "name": "Accept job",
+        "request": {
+          "method": "POST",
+          "header": [{ "key": "Content-Type", "value": "application/json" }],
+          "url": { "raw": "http://localhost:8081/jobs/{{booking_id}}/accept", "protocol": "http", "host": ["localhost"], "port": "8081", "path": ["jobs", "{{booking_id}}", "accept"] },
+          "body": { "mode": "raw", "raw": "{\"driver_id\":\"d-1\"}" }
+        }
+      }
+    ],
+    "variable": [{ "key": "booking_id", "value": "" }]
+  }

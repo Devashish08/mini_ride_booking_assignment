@@ -24,6 +24,10 @@ func main() {
 	cfg := config.LoadFromEnv("booking_svc", "8080")
 	logger := logging.New(cfg.LogLevel, cfg.ServiceName).With(slog.String("version", version))
 
+	// Signal context for graceful shutdown and consumers
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
 	// DB connect + bootstrap
 	startupCtx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
@@ -53,7 +57,14 @@ func main() {
 		_ = producer.Close()
 	}()
 	svc := service.NewBookingService(repo, producer, logger)
-
+	// Consumer: booking.accepted -> mark booking Accepted
+	acceptConsumer := mq.NewBookingAcceptedConsumer(cfg, repo, logger)
+	defer func() { _ = acceptConsumer.Close() }()
+	go func() {
+		if err := acceptConsumer.Run(ctx); err != nil && ctx.Err() == nil {
+			logger.Error("booking.accepted consumer stopped", slog.String("err", err.Error()))
+		}
+	}()
 	// HTTP server + routes
 	srv := httpserver.New(cfg, logger)
 	handler := handlerhttp.NewBookingHandler(svc)
@@ -61,8 +72,6 @@ func main() {
 
 	// Start and graceful shutdown
 	errCh := srv.Start()
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
 
 	select {
 	case <-ctx.Done():

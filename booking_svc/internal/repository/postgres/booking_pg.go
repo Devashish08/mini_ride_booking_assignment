@@ -78,3 +78,16 @@ ORDER BY created_at DESC;
 	}
 	return bookings, nil
 }
+
+func (r *BookingRepoPG) MarkAccepted(ctx context.Context, bookingID, driverID string) (bool, error) {
+	const q = `
+UPDATE bookings
+SET ride_status = 'Accepted', driver_id = $1
+WHERE booking_id = $2 AND ride_status = 'Requested';
+`
+	cmd, err := r.pool.Exec(ctx, q, driverID, bookingID)
+	if err != nil {
+		return false, err
+	}
+	return cmd.RowsAffected() == 1, nil
+}

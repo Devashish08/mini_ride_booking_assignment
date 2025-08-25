@@ -10,15 +10,21 @@ import (
 	"driver_svc/internal/config"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 )
 
 type Server struct {
 	httpServer *http.Server
+	router     *chi.Mux
 	logger     *slog.Logger
 }
 
 func New(cfg config.Config, logger *slog.Logger) *Server {
 	r := chi.NewRouter()
+	r.Use(middleware.RequestID)
+	r.Use(middleware.RealIP)
+	r.Use(middleware.Recoverer)
+	r.Use(RequestLogger(logger))
 	r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))
@@ -34,9 +40,12 @@ func New(cfg config.Config, logger *slog.Logger) *Server {
 
 	return &Server{
 		httpServer: srv,
+		router:     r,
 		logger:     logger,
 	}
 }
+
+func (s *Server) Router() chi.Router { return s.router }
 
 func (s *Server) Start() <-chan error {
 	errCh := make(chan error, 1)

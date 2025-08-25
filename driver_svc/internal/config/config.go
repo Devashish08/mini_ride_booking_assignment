@@ -17,6 +17,11 @@ type Config struct {
 	DBUser     string
 	DBPassword string
 	DBName     string
+
+	KafkaBrokers         string
+	TopicBookingCreated  string
+	TopicBookingAccepted string
+	ConsumerGroupJobs    string
 }
 
 func LoadFromEnv(serviceName, defaultPort string) Config {
@@ -30,23 +35,29 @@ func LoadFromEnv(serviceName, defaultPort string) Config {
 	dbPass := getEnv("DB_PASSWORD", dbUser)
 	dbName := getEnv("DB_NAME", dbUser)
 
-	return Config{
-		ServiceName:     serviceName,
-		HTTPPort:        port,
-		GracefulTimeout: time.Duration(gt) * time.Second,
-		LogLevel:        logLevel,
+	kBrokers := getEnv("KAFKA_BROKERS", "redpanda:9092")
+	tCreated := getEnv("TOPIC_BOOKING_CREATED", "booking.created")
+	tAccepted := getEnv("TOPIC_BOOKING_ACCEPTED", "booking.accepted")
+	cgJobs := getEnv("CONSUMER_GROUP_JOBS", "driver_svc.jobs")
 
-		DBHost:     dbHost,
-		DBPort:     dbPort,
-		DBUser:     dbUser,
-		DBPassword: dbPass,
-		DBName:     dbName,
+	return Config{
+		ServiceName:          serviceName,
+		HTTPPort:             port,
+		GracefulTimeout:      time.Duration(gt) * time.Second,
+		LogLevel:             logLevel,
+		DBHost:               dbHost,
+		DBPort:               dbPort,
+		DBUser:               dbUser,
+		DBPassword:           dbPass,
+		DBName:               dbName,
+		KafkaBrokers:         kBrokers,
+		TopicBookingCreated:  tCreated,
+		TopicBookingAccepted: tAccepted,
+		ConsumerGroupJobs:    cgJobs,
 	}
 }
 
-func (c Config) Addr() string {
-	return ":" + c.HTTPPort
-}
+func (c Config) Addr() string { return ":" + c.HTTPPort }
 
 func defByService(name, bookingDefault, driverDefault string) string {
 	switch name {
@@ -65,7 +76,6 @@ func getEnv(key, def string) string {
 	}
 	return def
 }
-
 func getEnvInt(key string, def int) int {
 	if v := os.Getenv(key); v != "" {
 		if n, err := strconv.Atoi(v); err == nil {
